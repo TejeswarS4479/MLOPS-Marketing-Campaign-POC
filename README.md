@@ -52,49 +52,318 @@ Our goal is to:
 
 ---
 
-## ⚙️ Project Workflow
+This repository demonstrates a complete **end-to-end machine learning workflow** for the classic **Bank Marketing dataset**, built on **Databricks** with **MLflow** integration.  
+It covers:
 
-### Steps:
-1. **Data Ingestion**
-   - Load and inspect dataset
-   - Check for class imbalance
+- Data ingestion and preprocessing
+- Model training using:
+  - Logistic Regression
+  - LightGBM with **SMOTE** for class imbalance
+- Experiment tracking with **MLflow**
+- Model registration and versioning
+- Real-time deployment with **Databricks Model Serving**
+- REST API consumption for predictions
+
+---
+
+## Table of Contents
+1. [Project Overview](#project-overview)  
+2. [Architecture](#architecture)  
+3. [Technologies Used](#technologies-used)  
+4. [Dataset](#dataset)  
+5. [Setup Instructions](#setup-instructions)  
+6. [Steps Performed](#steps-performed)  
+    - [A. Notebook Steps](#a-notebook-steps)
+    - [B. Databricks Steps Outside the Notebook](#b-databricks-steps-outside-the-notebook)
+7. [REST API Endpoint](#rest-api-endpoint)  
+8. [Folder Structure](#folder-structure)  
+9. [Future Enhancements](#future-enhancements)
+
+---
+
+## Architecture
+
+```
++--------------------+
+|  Raw Bank Data     |
+| (bank-full.csv)    |
++---------+----------+
+          |
+          v
++--------------------+
+|  Databricks Notebook |
+|  - Data Preprocessing |
+|  - Logistic Regression |
+|  - LightGBM + SMOTE    |
++---------+----------+
+          |
+          v
++-----------------------+
+| MLflow Experiment Tracking |
++---------+-----------------+
+          |
+          v
++-----------------------+
+| MLflow Model Registry |
++---------+-------------+
+          |
+          v
++-----------------------+
+| Databricks Model Serving |
++---------+-------------+
+          |
+          v
++-----------------------+
+| REST API Consumer (Python) |
++---------------------------+
+```
+
+---
+
+## Technologies Used
+
+| Component            | Technology Used           |
+|---------------------|---------------------------|
+| Data Processing      | Pandas, NumPy, Scikit-learn |
+| Visualization        | Matplotlib, Seaborn       |
+| Modeling             | Logistic Regression, LightGBM |
+| Imbalance Handling   | SMOTE (Imbalanced-learn)  |
+| Experiment Tracking  | MLflow                     |
+| Deployment           | Databricks Model Serving   |
+| Pipeline Orchestration | Databricks Runtime ML   |
+| API Requests         | Python Requests Library   |
+
+---
+
+## Dataset
+
+The project uses the **Bank Marketing dataset**, which contains information on customers and past marketing campaigns.
+
+- **Source:** UCI Machine Learning Repository  
+- **Target Variable:** `y`  
+  - `yes` → customer subscribed  
+  - `no` → customer did not subscribe
+
+Key features include:
+- **Demographics:** age, marital status, education  
+- **Financial Info:** balance, housing loan, personal loan  
+- **Campaign Info:** contact method, previous outcome, campaign duration  
+
+---
+
+## Setup Instructions
+
+### Prerequisites
+- Databricks workspace with **Databricks Runtime ML**
+- Python 3.10+
+- Access to MLflow Model Registry
+- Personal Access Token for Databricks REST API
+
+---
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/<your-username>/bank-marketing-ml-pipeline.git
+cd bank-marketing-ml-pipeline
+```
+
+---
+
+### 2. Install Required Packages
+Install dependencies locally (for running outside Databricks):
+
+```bash
+pip install -r requirements.txt
+```
+
+Typical dependencies:
+```text
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+lightgbm
+imbalanced-learn
+mlflow>=3.0
+```
+
+---
+
+### 3. Import Notebook into Databricks (Optional - If the notebook exists outside of Databricks)
+- Go to Databricks → Workspace → Import  
+- Upload the provided notebook:  
+  `bank_marketing_ml_workflow.ipynb`
+
+---
+
+## Steps Performed
+
+### A. Notebook Steps
+
+The notebook walks through:
+
+1. **Data Loading**
+   - Load `bank-full.csv` from Databricks Volumes. Refer to this [link.](https://docs.databricks.com/gcp/en/volumes/utility-commands)
+
 2. **Data Preprocessing**
-   - Handle categorical and numeric features
-   - Scaling numeric features with `StandardScaler`
-   - One-hot encoding categorical features
-3. **Train/Test Split**
-   - 80/20 split using stratification
-4. **Baseline Model: Logistic Regression**
-   - Implemented with `Pipeline`
-   - Threshold tuning for optimal precision-recall trade-off
-5. **Batch Scoring**
-   - Demonstrate prediction on a separate batch file (`bank.csv`)
-6. **Advanced Model: LightGBM + SMOTE**
-   - Handle severe class imbalance
-   - Find threshold that maintains recall ≥ 0.70
-7. **Model Evaluation**
-   - Confusion Matrix
-   - Precision/Recall curves
-   - ROC AUC
-8. **Business Validation**
-   - Link metrics to business impact
+   - Identify categorical and numeric columns.
+   - Apply:
+     - `StandardScaler` → numeric features
+     - `OneHotEncoder` → categorical features
+
+3. **Handling Imbalanced Data**
+   - Explore target class imbalance.
+   - Use **SMOTE** for balancing in LightGBM.
+
+4. **Model Training**
+   - Logistic Regression pipeline
+   - LightGBM + SMOTE for improved recall and precision
+
+5. **Metrics Evaluation**
+   - Precision, Recall, F1 Score, ROC AUC
+   - Confusion matrix and threshold tuning
+
+6. **Experiment Tracking with MLflow**
+   - Log:
+     - Parameters
+     - Metrics
+     - Artifacts (plots, model files)
+
+7. **Model Registration**
+   - Register best model (`LightGBM + SMOTE`) into MLflow Model Registry.
+
+8. **Batch Scoring**
+   - Perform scoring on another dataset (`bank.csv`).
 
 ---
 
+### B. Databricks Steps Outside the Notebook
+
+These steps are performed directly in the Databricks UI or CLI:
+
+1. **Create MLflow Experiment**
+   - Navigate to **Experiments → Create**.
+   - Path used:  
+     ```
+     /Users/tejeswar.seerapu@modak.com/bank_marketing_experiment
+     ```
+
+2. **Create Model Serving Endpoint**
+   - Go to **Serving → Create Endpoint**.
+   - Select registered model: `bank_marketing_model_registry`.
+   - Configure:
+     - Cluster size
+     - Scaling policy
+   - Deploy to production.
+
+3. **Set Model Alias**
+   ```python
+   from mlflow.tracking import MlflowClient
+
+   client = MlflowClient()
+   client.set_registered_model_alias(
+       name="workspace.default.bank_marketing_model_registry",
+       alias="prod",
+       version=1
+   )
+   ```
+   If you don’t use aliases, you need to refer to the model by version number every time.
+      ```
+         mlflow.pyfunc.load_model("models:/bank_marketing_model_registry/1")
+      ```
+   
+   If you deploy a new version (2), you must manually update all code, endpoints, or pipelines that reference version 1.
+   A model alias acts like a permanent pointer or tag (e.g., prod, staging, dev) to a specific model version.
+   Now, any service that loads the model using the alias:
+      ```
+         mlflow.pyfunc.load_model("models:/workspace.default.bank_marketing_model_registry@prod")
+      ```
+
+4. **Serve the Model**
+   - Click on the above created model under **Models** section and click on **Serve this model** option.
+   - Create an endpoint by entering details of name, version, compute etc and save the endpoint URL for later use. 
+
+5. **Consume REST API**
+   - Generate a Databricks **Personal Access Token (PAT)**.
+      - Go to User Profile → Settings → User → Developer → Access Tokens → Manage, then click "Generate New Token".
+      - Enter a comment, generate the token, and copy it immediately as it cannot be viewed later.
+   - Start and Call the model endpoint for real-time predictions:
+     ```python
+     import requests, json
+     import pandas as pd
+
+     url = "https://<databricks-instance>/serving-endpoints/bank_marketing_model_endpoint/invocations"
+     headers = {
+         "Authorization": "Bearer <your-token>",
+         "Content-Type": "application/json",
+     }
+
+     raw_data = [{
+         "age": 45,
+         "balance": 1200,
+         "day": 15,
+         "duration": 300,
+         "campaign": 1,
+         "pdays": 999,
+         "previous": 0,
+         "job": "admin.",
+         "marital": "married",
+         "education": "secondary",
+         "default": "no",
+         "housing": "yes",
+         "loan": "no",
+         "contact": "cellular",
+         "month": "may",
+         "poutcome": "unknown"
+     }]
+
+      df = pd.DataFrame(raw_data)
+      transformed_data = preprocessor.transform(df)
+      final_json = {
+         "dataframe_records": pd.DataFrame(transformed_data.toarray()).to_dict(orient="records")
+      }
+      # ---------------------------
+      # Sending request to Databricks model serving endpoint
+      # ---------------------------
+     response = requests.post(url, headers=headers, data=final_json)
+     print("Status Code:", response.status_code)
+     print("Response JSON:", response.json())
+     ```
+
 
 ---
 
-## 🛠️ Tools & Technologies
+## Folder Structure
 
-| Area            | Tools Used |
-|-----------------|------------|
-| **Data Engineering** | Pandas, NumPy |
-| **Machine Learning** | Scikit-learn, LightGBM, SMOTE (Imbalanced-learn) |
-| **Visualization** | Seaborn, Matplotlib |
-| **Deployment (future scope)** | SageMaker or Databricks |
-| **Version Control** | Git, GitHub |
+```
+bank-marketing-ml-pipeline/
+│
+├── bank_marketing_ml_workflow.ipynb    # Main Databricks notebook
+├── README.md                                   # Project documentation
+├── requirements.txt                            # Python dependencies
+└── data/                                       # (Optional) Local dataset storage
+    ├── bank-full.csv
+    └── bank.csv
+```
 
 ---
+
+## REST API Endpoint
+
+- **Endpoint Name:** `bank_marketing_model_endpoint`  
+- **Method:** POST  
+- **Input Format:** JSON (records array)  
+- **Output:** Predicted class & probability
+
+---
+
+## Future Enhancements
+
+- Implement **Hyperparameter tuning** with HyperOpt or Optuna
+- Add **Databricks Workflows** for full MLOps automation
+- Enable **monitoring with Databricks Model Monitor**
+- Automate **feature engineering with Feature Store**
 
 ## 🐍 Installation & Setup
 
@@ -102,4 +371,3 @@ Our goal is to:
 ```bash
 git clone https://github.com/TejeswarS4479/MLOPS-Marketing-Campaign-POC.git
 cd MLOPS-Marketing-Campaign-POC
-
